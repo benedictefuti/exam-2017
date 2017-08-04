@@ -1,0 +1,230 @@
+---
+title: "exam-2017"
+author: "Benedicte Futi (711167)"
+date: "August 4, 2017"
+output: html_document
+---
+#Question 1
+```{r setup, include=FALSE, echo=TRUE}
+#Import data from the URL.
+#Load required package to import and read the data.
+library(readr)
+#Read from dropbox using url, and import into using read_csv to convert into a dataframe
+pain_df <- read.csv("https://dl.dropboxusercontent.com/u/11805474/painblogr/biostats/exam-data-2017/question_1.csv")
+
+# Explore the content of pain_df
+pain_df
+
+colnames(pain_df)
+
+head(pain_df)
+tail(pain_df)
+summary(pain_df)
+
+# Data are not tidy
+# There are some missing values
+#data are presented in a wide format
+# some columns have more than one variable, eg: Group.and.location
+#load packages to organize and tidy the data
+library(tidyr)
+library(dplyr)
+
+# tidy from wide to long format
+tidy_pain_df <- pain_df %>% group_by(Patient.ID, Group.and.location) %>% 
+  gather(key= time, value= pain_intensity, Baseline, Week.4, Week.8) %>% 
+  separate('Group.and.location', into= 'location', 'Group')
+tidy_pain_df
+# remove missing values
+
+missing_pain_df <- is.na(tidy_pain_df) %>%
+  na.omit(missing_pain_df)
+#verify that missing values are removed
+na <- is.na(missing_pain_df)
+sum(na)
+
+# plot showing the relationship between pain intensity over the three time intervals at each of the locations the study was conducted at
+
+tidy_pain_df
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
+question 2
+
+```{r, echo=TRUE}
+#1. import and read the dataset.
+#download required package
+library(readr)
+#Read from dropbox using url, and import into using read_csv to convert into a dataframe
+df <- read.csv('https://dl.dropboxusercontent.com/u/11805474/painblogr/biostats/exam-data-2017/question_2.csv')
+# display df
+df
+dim(df)
+colnames(df)
+head(df)
+tail(df)
+summary(df)
+
+#data are already tidy : long format , no missing values, no outliers.
+
+# Plot the data
+# plot using mosaic plot
+df_table <- xtabs(~Catholic + Fertility, data = df)
+df_plot <- mosaicplot(df_table, main = "Relationship between fertility and Religion", xlab = 'Religion', ylab = 'Fertility rate', color = 'green')
+ # Hypothesis testing.
+#Null hypothesis (H0)= measure of the fertility in a population does not depend on the population religion.
+# Alternative hypotesis (Ha)= measure of the fertility in a population do depend on the population religion
+
+# statistical tests 
+  # two variables from the same population, do not meet Gaussian distribution ( non parametric ), therefore,  
+  #we will use a non parametric test: the Wilcoxon signed rank test. 
+ stat_df <- wilcox.test(df$Fertility, df$Catholic,
+            p.adjust.methods= 'holm') # To prevent the inflation of type I error rates, we adjust p-values using the 'p.adjust.method' option to control for familywise error rate.
+
+stat_df 
+# significant p-value = 0.007949 (<0.05), we reject our null hypothesis.
+#alternative hypothesis: true
+ # therefore, the fertility rate in different states do depend on the the state's religion 
+
+
+```
+question 3
+```{r, echo=TRUE}
+# import and read the dataset.
+#download required package
+library(readr)
+#Read from dropbox using url, and import into using read_csv to convert into a dataframe
+df3 <- read.csv('https://dl.dropboxusercontent.com/u/11805474/painblogr/biostats/exam-data-2017/question_3.csv')
+# Explore df3
+df3
+dim(df3)
+colnames(df3)
+head(df3)
+tail(df3)
+summary(df3)
+
+#tidy data
+# data have no missing values
+#data need to be reorder (tidy) for a better long format.
+#import packages
+library(tidyr)
+library(dplyr)
+library(tibble)
+# add a column for crops yield observation.
+tidy_rows_df3 <- rownames_to_column(df3, var = "crop_ID")
+
+tidy_df3 <- tidy_rows_df3 %>% gather(key= Conditions, value= Crop_weight, control, treatment_1, treatment_2) %>%
+  #group by conditions
+group_by(Conditions)
+tidy_df3 #display tidy data
+
+#Plot the data
+library(ggplot2)
+# plot using basic boxplot
+
+
+df_plot <- ggplot(data= tidy_df3, aes(x= Conditions, y=Crop_weight,
+                     fill= Conditions, col= "blue",
+                     xlab= "Conditions", 
+                     ylab= 'crop yields weight'))+
+  geom_boxplot() + # add mean 
+stat_summary(fun.y = mean, geom = "point", shape = 3, size = 3)+
+  #add title
+  ggtitle("crop yields weight at different conditions")
+
+df_plot
+# HYpothesis testing
+# Null Hypothesis: Crops weight do not depend on the Conditions from which they are obtained
+# Alternative Hypothesis: Crops weight do depend on the Conditions from which they are obtained
+# statisticals tests: 
+ #data are unpaired, non parametric, one variable, more than 2 groups,
+#therefore we will be using the Kruskal-Wallis test
+ # Assumptions of the test: 
+        #data are not matched,
+        #the errors are independent.
+#  'Conditions' is a charcter not a factor (so R thinks its infinite and refuses to run Kruskal test)
+# assign "Conditions" as  factors
+tidy_df3$Conditions <- as.factor(tidy_df3$Conditions)
+# Let"s run the test
+df3_test <- kruskal.test( Crop_weight ~ Conditions, data =  tidy_df3)
+
+#print test results 
+df3_test
+# Interpretation
+  # since the p-value (0.01842) <0.05, we reject the Null Hypothesis. 
+  #therefore, the Crops weight do depend on the Conditions from which they are obtained.
+# we will do a post hoc test to asses which conditions are different.
+  #Pairwise Mann-Whitney U-test
+
+# assumption: #All the observations from both groups are independent of each other
+    #Dependent variable should be measured at the ordinal or continuous
+
+pairwise.wilcox.test(tidy_df3$Crop_weight, tidy_df3$Conditions,
+                     p.adjust.method = 'holm')   #To prevent the inflation of type I error rates, we adjust p-values using the 'p.adjust.method' option to control for familywise error rate.
+
+
+#interpretation: the post hoc test shows that there is a signifficant difference between treatment_1 and treatment_2 ( with a p-value= 0.027), and there is no difference between control and both treatment.
+```
+question 4
+```{r, echo= TRUE}
+# import and read the dataset.
+#download required package
+library(readr)
+#Read from dropbox using url, and import into using read_csv to convert into a dataframe
+df4 <- read.csv('https://dl.dropboxusercontent.com/u/11805474/painblogr/biostats/exam-data-2017/question_4.csv')
+# Explore df4
+df4
+dim(df4)
+colnames(df4)
+head(df4)
+tail(df4)
+summary(df4)
+
+#tidy data
+# data are in long format, but missing a column id.
+tidy_df4 <- rownames_to_column(df4, var = "ID")
+#display df4 tidy
+grouped_df4 <- tidy_df4 %>% group_by(Condition)
+grouped_df4
+
+#plot grouped df4
+## since our data are categorical ones, we will convert them into a table before plotting.
+df4_tab <- xtabs(~Diet + Condition, data = grouped_df4)
+df4_tab#print table 
+
+#plot using a mosaic plot ( to explore data)
+mosaicplot(df4_tab)
+
+# Hypothesis Testing
+# Null hypothesis: the disease outcome is independant of the consumed diet
+# Alternative hypothesis: the disease outcome is independant of the consumed diet
+# Statistical Tests: 
+  #we will use Chisquare test
+   #why? because, we analyse two categorical data from the same population in order to assess possible association between different diet and disease outcome in one population 
+  
+
+df4_test <- chisq.test(df4_tab, correct = TRUE)
+df4_test  #display results
+#Interpretation
+
+## with a significantly low p-value<0.05 (p-vakue= 0.0004454), we reject our null hypothesis and conclude that the disease outcome is independant of the consumed diet.
+# post hoc
+
+
+
+```
+
